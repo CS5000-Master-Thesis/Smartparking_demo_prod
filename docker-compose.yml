@@ -1,0 +1,156 @@
+services:
+  traefik:
+    image: traefik:v3.1
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - smartparking_network
+    ports:
+      - "80:80/tcp"
+      - "443:443/tcp"
+    environment:
+      # CF_DNS_API_TOKEN_FILE: /run/secrets/cf_api_token # note using _FILE for docker secrets
+      CF_DNS_API_TOKEN: ${CF_DNS_API_TOKEN} # if using .env
+      TRAEFIK_DASHBOARD_CREDENTIALS: ${TRAEFIK_DASHBOARD_CREDENTIALS}
+    secrets:
+      - cf_api_token
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./data/traefik.yml:/traefik.yml:ro
+      - ./data/acme.json:/acme.json
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.entrypoints=http"
+      - "traefik.http.routers.traefik.rule=Host(`traefik-dashboard.smartparking.live`)"
+      - "traefik.http.middlewares.traefik-auth.basicauth.users=${TRAEFIK_DASHBOARD_CREDENTIALS}"
+      - "traefik.http.middlewares.traefik-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.sslheader.headers.customrequestheaders.X-Forwarded-Proto=https"
+      - "traefik.http.routers.traefik.middlewares=traefik-https-redirect"
+      - "traefik.http.routers.traefik-secure.entrypoints=https"
+      - "traefik.http.routers.traefik-secure.rule=Host(`traefik-dashboard.smartparking.live`)"
+      - "traefik.http.routers.traefik-secure.middlewares=traefik-auth"
+      - "traefik.http.routers.traefik-secure.tls=true"
+      - "traefik.http.routers.traefik-secure.tls.certresolver=cloudflare"
+      - "traefik.http.routers.traefik-secure.tls.domains[0].main=smartparking.live"
+      - "traefik.http.routers.traefik-secure.tls.domains[0].sans=*.smartparking.live"
+      - "traefik.http.routers.traefik-secure.service=api@internal"
+
+  valkey:
+    image: valkey/valkey:7.2.5
+    restart: unless-stopped
+    labels:
+      traefik.enable: false
+    networks:
+      - smartparking_network
+
+  backend:
+    image: kobeynator/backend:latest
+    expose:
+      - "3000"
+      - "50051"
+    depends_on:
+      - valkey
+      - identity
+    restart: unless-stopped
+    environment:
+      ISSUERS_OEM_DID: ${ISSUERS_OEM_DID}
+      ISSUERS_OEM_FRAGMENT: ${ISSUERS_OEM_FRAGMENT}
+      ISSUERS_TA_DID: ${ISSUERS_TA_DID}
+      ISSUERS_TA_FRAGMENT: ${ISSUERS_TA_FRAGMENT}
+      ISSUERS_PSP_DID: ${ISSUERS_PSP_DID}
+      ISSUERS_PSP_FRAGMENT: ${ISSUERS_PSP_FRAGMENT}
+      ISSUERS_PLO_DID: ${ISSUERS_PLO_DID}
+      ISSUERS_PLO_FRAGMENT: ${ISSUERS_PLO_FRAGMENT}
+    labels:
+      traefik.enable: true
+      traefik.http.routers.backend.rule: Host(`smartparking.live`)
+      traefik.http.routers.backend.entrypoints: https
+      traefik.http.routers.whoami.tls: true
+      traefik.http.services.backend.loadbalancer.server.port: "3000"
+    networks:
+      - smartparking_network
+
+  identity:
+    image: iotaledger/identity-grpc:alpha
+    restart: unless-stopped
+    environment:
+      - API_ENDPOINT=https://api.testnet.shimmer.network
+      - SNAPSHOT_PATH=/stronghold.hodl
+      - STRONGHOLD_PWD_FILE=/run/secrets/stronghold_pwd
+    volumes:
+      - ./data/stronghold.hodl:/stronghold.hodl:ro
+    expose:
+      - "50051"
+    labels:
+      traefik.enable: false 
+    secrets:
+      - stronghold_pwd
+    networks:
+      - smartparking_network
+
+  oid4vc-impierce:
+    image: kobeynator/ssi-agent:latest
+    depends_on:
+      - cqrs-postgres-db
+    restart: unless-stopped
+    expose:
+      - "3033"
+    volumes:
+      - ../shared:/usr/shared
+      - ./data/stronghold.hodl:/stronghold.hodl:ro
+      - ../oid4vc/impierce/event_publisher_config.yml:/app/agent_event_publisher_http/config.yml:ro
+      - ../oid4vc/impierce/config.yml:/app/agent_application/config.yml:ro
+      - ../oid4vc/impierce/issuance_config.yml:/app/agent_issuance/issuance-config.yml:ro
+      - ./data/tmp:/app/agent_api_rest
+      - ./data/did-configuration.json:/app/.well-known/did-configuration.json:ro
+    entrypoint:
+      [
+        "/bin/sh",
+        "-c",
+        "export AGENT_CONFIG_STRONGHOLD_PASSWORD=$$(cat /run/secrets/stronghold_pwd) ; /usr/local/bin/agent_application",
+      ]
+    environment:
+      AGENT_CONFIG_URL: https://impierce.smartparking.live
+      AGENT_SECRET_MANAGER_STRONGHOLD_PATH: /stronghold.hodl
+      AGENT_CONFIG_ISSUER_KEY_ID: ${ISSUERS_OEM_KEYID}
+      AGENT_CONFIG_ISSUER_DID: ${ISSUERS_OEM_DID}
+      AGENT_CONFIG_ISSUER_FRAGMENT: ${ISSUERS_OEM_FRAGMENT}
+      AGENT_CONFIG_DEFAULT_DID_METHOD: "did:iota:rms"
+      AGENT_APPLICATION_ENABLE_CORS: true
+      AGENT_CONFIG_EVENT_STORE: postgres
+      AGENT_STORE_DB_CONNECTION_STRING: postgresql://demo_user:demo_pass@cqrs-postgres-db:5432/demo
+    labels:
+      traefik.enable: true
+      traefik.http.routers.oid4vc-impierce.rule: Host(`impierce.smartparking.live`)
+      traefik.http.routers.oid4vc-impierce.entrypoints: https
+      traefik.http.routers.whoami.tls: true
+      traefik.http.services.oid4vc-impierce.loadbalancer.server.port: "3033"
+    secrets:
+      - stronghold_pwd
+    networks:
+      - smartparking_network
+
+  cqrs-postgres-db:
+    image: postgres
+    restart: unless-stopped
+    expose:
+      - 5432
+    labels:
+      traefik.enable: false
+    environment:
+      POSTGRES_DB: demo
+      POSTGRES_USER: demo_user
+      POSTGRES_PASSWORD: demo_pass
+    volumes:
+      - "./oid4vc/impierce/db:/docker-entrypoint-initdb.d"
+    networks:
+      - smartparking_network
+
+networks:
+  smartparking_network:
+
+secrets:
+  stronghold_pwd:
+    file: data/stronghold_secret.txt
