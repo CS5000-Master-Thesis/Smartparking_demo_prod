@@ -10,11 +10,8 @@ services:
       - "80:80/tcp"
       - "443:443/tcp"
     environment:
-      # CF_DNS_API_TOKEN_FILE: /run/secrets/cf_api_token # note using _FILE for docker secrets
-      CF_DNS_API_TOKEN: ${CF_DNS_API_TOKEN} # if using .env
+      CF_DNS_API_TOKEN: ${CF_DNS_API_TOKEN}
       TRAEFIK_DASHBOARD_CREDENTIALS: ${TRAEFIK_DASHBOARD_CREDENTIALS}
-    secrets:
-      - cf_api_token
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -67,7 +64,7 @@ services:
       traefik.enable: true
       traefik.http.routers.backend.rule: Host(`smartparking.live`)
       traefik.http.routers.backend.entrypoints: https
-      traefik.http.routers.whoami.tls: true
+      traefik.http.routers.backend.tls: true
       traefik.http.services.backend.loadbalancer.server.port: "3000"
     networks:
       - smartparking_network
@@ -98,11 +95,10 @@ services:
     expose:
       - "3033"
     volumes:
-      - ../shared:/usr/shared
       - ./data/stronghold.hodl:/stronghold.hodl:ro
-      - ../oid4vc/impierce/event_publisher_config.yml:/app/agent_event_publisher_http/config.yml:ro
-      - ../oid4vc/impierce/config.yml:/app/agent_application/config.yml:ro
-      - ../oid4vc/impierce/issuance_config.yml:/app/agent_issuance/issuance-config.yml:ro
+      - ./oid4vc/impierce/event_publisher_config.yml:/app/agent_event_publisher_http/config.yml:ro
+      - ./oid4vc/impierce/config.yml:/app/agent_application/config.yml:ro
+      - ./oid4vc/impierce/issuance_config.yml:/app/agent_issuance/issuance-config.yml:ro
       - ./data/tmp:/app/agent_api_rest
       - ./data/did-configuration.json:/app/.well-known/did-configuration.json:ro
     entrypoint:
@@ -125,7 +121,7 @@ services:
       traefik.enable: true
       traefik.http.routers.oid4vc-impierce.rule: Host(`impierce.smartparking.live`)
       traefik.http.routers.oid4vc-impierce.entrypoints: https
-      traefik.http.routers.whoami.tls: true
+      traefik.http.routers.oid4vc-impierce.tls: true
       traefik.http.services.oid4vc-impierce.loadbalancer.server.port: "3033"
     secrets:
       - stronghold_pwd
