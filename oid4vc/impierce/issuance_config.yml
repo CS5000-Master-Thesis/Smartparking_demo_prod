@@ -6,41 +6,44 @@ server_config:
         type:
           - VerifiableCredential
       display:
-        - name: SmartParking VC1
+        - name: Vehicle Identification Credential
           locale: en
           logo:
-            url: https://impierce.com/images/logo-blue.png
-            alt_text: UniCore Logo1
+            url: https://smartparking.live/images/manufacturing_icon.png
+            alt_text: OEM Logo
+
     - credential_configuration_id: VehicleRegistrationCredential
       format: jwt_vc_json
       credential_definition:
         type:
           - VerifiableCredential
       display:
-        - name: SmartParking VC2
+        - name: Vehicle Registration Credential
           locale: en
           logo:
-            uri: https://impierce.com/images/logo-blue.png
-            alt_text: UniCore Logo2
+            url: https://smartparking.live/images/transportation_authority.png
+            alt_text: TA Logo
+
     - credential_configuration_id: VehicleOwnershipCredential
       format: jwt_vc_json
       credential_definition:
         type:
           - VerifiableCredential
       display:
-        - name: SmartParking VC3
+        - name: Vehicle Ownership Credential
           locale: en
           logo:
-            uri: https://impierce.com/images/logo-blue.png
-            alt_text: UniCore Logo3
+            url: https://smartparking.live/images/transportation_authority.png
+            alt_text: TA Logo
+
     - credential_configuration_id: CollaborationCredential
       format: jwt_vc_json
       credential_definition:
         type:
           - VerifiableCredential
       display:
-        - name: SmartParking VC4
+        - name: Collaboration Credential
           locale: en
           logo:
-            uri: https://impierce.com/images/logo-blue.png
-            alt_text: UniCore Logo4
+            url: https://smartparking.live/images/service_provider_icon.png
+            alt_text: PSP Logo

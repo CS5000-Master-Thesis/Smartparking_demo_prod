@@ -2,6 +2,7 @@ services:
   traefik:
     image: traefik:v3.1
     restart: unless-stopped
+    container_name: traefik
     security_opt:
       - no-new-privileges:true
     networks:
@@ -36,6 +37,7 @@ services:
 
   valkey:
     image: valkey/valkey:7.2.5
+    container_name: valkey
     restart: unless-stopped
     labels:
       traefik.enable: false
@@ -44,6 +46,7 @@ services:
 
   backend:
     image: kobeynator/backend:latest
+    container_name: backend
     expose:
       - "3000"
       - "50051"
@@ -71,6 +74,7 @@ services:
 
   identity:
     image: iotaledger/identity-grpc:alpha
+    container_name: identity
     restart: unless-stopped
     environment:
       - API_ENDPOINT=https://api.testnet.shimmer.network
@@ -81,7 +85,7 @@ services:
     expose:
       - "50051"
     labels:
-      traefik.enable: false 
+      traefik.enable: false
     secrets:
       - stronghold_pwd
     networks:
@@ -89,6 +93,7 @@ services:
 
   oid4vc-impierce:
     image: kobeynator/ssi-agent:latest
+    container_name: oid4vc-impierce
     depends_on:
       - cqrs-postgres-db
     restart: unless-stopped
@@ -130,6 +135,7 @@ services:
 
   cqrs-postgres-db:
     image: postgres
+    container_name: cqrs-postgres-db
     restart: unless-stopped
     expose:
       - 5432

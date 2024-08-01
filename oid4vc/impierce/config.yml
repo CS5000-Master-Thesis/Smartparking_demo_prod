@@ -24,5 +24,5 @@ display:
     locale: en
     logo:
       # This value will also be used in the SIOPv2/OID4VP `client_metadata`'s `logo_uri` property.
-      uri: https://impierce.com/images/logo-blue.png
+      uri: https://smartparking.live/SmartParkingIcon.png
       alt_text: SmartParking Logo
